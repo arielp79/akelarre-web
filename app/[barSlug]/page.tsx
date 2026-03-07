@@ -37,8 +37,6 @@ const mockGames: Game[] = [
   },
 ];
 
-
-
 type PageProps = {
   params: Promise<{ // Correcto: Defines params como Promise
     barSlug: string;
