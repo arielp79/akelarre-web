@@ -142,8 +142,15 @@ export default function RequestGamePage({ params }: PageProps) {
               capture="environment"
               onChange={handleFileChange}
               required
-              className="text-xs"
+              className="hidden" // Lo ocultamos para usar un botón más lindo
+              id="dni-upload"
             />
+            <label
+              htmlFor="dni-upload"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 p-8 text-zinc-500 hover:bg-zinc-50 dark:border-zinc-700"
+            >
+              <span className="text-sm font-medium">📷 Tocar para sacar foto al DNI</span>
+            </label>
           </label>
 
           {previewUrl && (
