@@ -44,43 +44,50 @@ export default function RequestGamePage({ params }: PageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Si no se encuentra el juego, no enviamos nada
-    if (!game) return;
+    if (!game || !dniFile) return; // No enviamos si no hay juego o no sacó la foto
 
     setSubmitting(true);
 
-    const loanData = {
-      gameId: game.id,
-      gameName: game.name,
-      barSlug: barSlug,
-      fullName: fullName,     // Usamos los estados de React
-      phone: phone,           // Usamos los estados de React
-      tableNumber: tableNumber, // Usamos los estados de React
-      dniImageUrl: "url_provisoria_luego_usaremos_cloudinary",
-    };
+    // 1. Convertimos la foto a un formato que el servidor entienda (Base64)
+    const reader = new FileReader();
+    reader.readAsDataURL(dniFile);
 
-    try {
-      const response = await fetch("/api/loans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loanData),
-      });
+    reader.onloadend = async () => {
+      const base64Image = reader.result;
 
-      if (response.ok) {
-        setMessage("¡Pedido confirmado! Acércate a la ludoteca por tu juego.");
-        // Limpiamos el formulario
-        setFullName("");
-        setPhone("");
-        setTableNumber("");
-      } else {
-        setMessage("Error al procesar el pedido.");
+      const loanData = {
+        gameId: game.id,
+        gameName: game.name,
+        barSlug: barSlug,
+        fullName: fullName,
+        phone: phone,
+        tableNumber: tableNumber,
+        dniImage: base64Image, // Enviamos la FOTO REAL, no el texto provisorio
+      };
+
+      try {
+        const response = await fetch("/api/loans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(loanData),
+        });
+
+        if (response.ok) {
+          setMessage("¡Pedido confirmado! Acércate a la ludoteca por tu juego.");
+          setFullName("");
+          setPhone("");
+          setTableNumber("");
+          setDniFile(null);
+          setPreviewUrl(null);
+        } else {
+          setMessage("Error al procesar el pedido.");
+        }
+      } catch (error) {
+        setMessage("Error de conexión con el servidor.");
+      } finally {
+        setSubmitting(false);
       }
-    } catch (error) {
-      setMessage("Error de conexión con el servidor.");
-    } finally {
-      setSubmitting(false);
-    }
+    };
   };
 
   // Si el ID del juego no existe en nuestra lista
