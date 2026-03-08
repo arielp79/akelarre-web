@@ -1,34 +1,40 @@
 "use client";
 
-import React, { useState, use } from "react"; // Importamos 'use'
+import React, { useState, use } from "react";
+
+// Simulamos la base de datos de juegos (esto debería estar en un archivo aparte luego)
+const GAMES = [
+  { id: "1", name: "Catan" },
+  { id: "2", name: "Dixit" },
+  { id: "3", name: "Dobble" },
+];
 
 type PageProps = {
-  params: Promise<{ // Definimos params como una Promesa
+  params: Promise<{
     barSlug: string;
     gameId: string;
   }>;
 };
 
 export default function RequestGamePage({ params }: PageProps) {
-  // 1. Resolvemos los parámetros (Soluciona tu error de la captura)
   const { barSlug, gameId } = use(params);
+
+  // 1. Buscamos el juego para que la variable 'game' exista
+  const game = GAMES.find((g) => g.id === gameId);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [tableNumber, setTableNumber] = useState("");
   const [dniFile, setDniFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // Estado para la foto
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Manejador de cambio de archivo (DNI)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setDniFile(file);
-
     if (file) {
-      // Creamos una URL temporal para mostrar la imagen en el celu
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     } else {
@@ -39,36 +45,87 @@ export default function RequestGamePage({ params }: PageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!dniFile) {
-      setMessage("Por favor, saca una foto de tu DNI.");
-      return;
-    }
+    // Si no se encuentra el juego, no enviamos nada
+    if (!game) return;
 
     setSubmitting(true);
-    setMessage(null);
 
-    // Simulación de envío
-    setTimeout(() => {
+    const loanData = {
+      gameId: game.id,
+      gameName: game.name,
+      barSlug: barSlug,
+      fullName: fullName,     // Usamos los estados de React
+      phone: phone,           // Usamos los estados de React
+      tableNumber: tableNumber, // Usamos los estados de React
+      dniImageUrl: "url_provisoria_luego_usaremos_cloudinary",
+    };
+
+    try {
+      const response = await fetch("/api/loans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(loanData),
+      });
+
+      if (response.ok) {
+        setMessage("¡Pedido confirmado! Acércate a la ludoteca por tu juego.");
+        // Limpiamos el formulario
+        setFullName("");
+        setPhone("");
+        setTableNumber("");
+      } else {
+        setMessage("Error al procesar el pedido.");
+      }
+    } catch (error) {
+      setMessage("Error de conexión con el servidor.");
+    } finally {
       setSubmitting(false);
-      setMessage("Pedido enviado correctamente (simulado).");
-    }, 1000);
+    }
   };
+
+  // Si el ID del juego no existe en nuestra lista
+  if (!game) {
+    return <div className="p-10 text-center">Juego no encontrado</div>;
+  }
 
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-6 font-sans dark:bg-black">
       <div className="mx-auto max-w-xl">
         <h1 className="mb-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Pedir juego #{gameId} en {barSlug.replace("-", " ")}
+          Pedir {game.name} en {barSlug.replace("-", " ")}
         </h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm dark:bg-zinc-900">
-          {/* ... (campos de nombre y email iguales) ... */}
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span>Nombre Completo *</span>
+            <input
+              type="text"
+              name="fullName"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="rounded-lg border p-2 dark:bg-zinc-950"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span>Número de Mesa *</span>
+            <input
+              type="text"
+              name="tableNumber"
+              value={tableNumber}
+              onChange={(e) => setTableNumber(e.target.value)}
+              required
+              className="rounded-lg border p-2 dark:bg-zinc-950"
+            />
+          </label>
 
           <label className="flex flex-col gap-1.5 text-sm">
             <span>Teléfono (WhatsApp) *</span>
             <input
               type="tel"
-              inputMode="tel" // Forzamos teclado numérico en el móvil
+              name="phone"
+              inputMode="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Ej: 2991234567"
@@ -82,14 +139,13 @@ export default function RequestGamePage({ params }: PageProps) {
             <input
               type="file"
               accept="image/*"
-              capture="environment" // Sugiere abrir la cámara trasera directamente
+              capture="environment"
               onChange={handleFileChange}
               required
               className="text-xs"
             />
           </label>
 
-          {/* Previsualización Responsive */}
           {previewUrl && (
             <div className="mt-2 overflow-hidden rounded-lg border-2 border-zinc-200 dark:border-zinc-700">
               <p className="bg-zinc-100 p-1 text-center text-xs text-zinc-500 dark:bg-zinc-800">Vista previa del documento</p>
@@ -109,7 +165,7 @@ export default function RequestGamePage({ params }: PageProps) {
             {submitting ? "Procesando..." : "Confirmar Pedido"}
           </button>
 
-          {message && <p className="text-center text-sm text-emerald-500">{message}</p>}
+          {message && <p className="mt-4 text-center text-sm font-medium text-emerald-500">{message}</p>}
         </form>
       </div>
     </main>
