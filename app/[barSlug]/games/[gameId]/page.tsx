@@ -1,13 +1,7 @@
 "use client";
 
-import React, { useState, use } from "react";
-
-// Simulamos la base de datos de juegos (esto debería estar en un archivo aparte luego)
-const GAMES = [
-  { id: "1", name: "Catan" },
-  { id: "2", name: "Dixit" },
-  { id: "3", name: "Dobble" },
-];
+import React, { useState, use, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 type PageProps = {
   params: Promise<{
@@ -18,18 +12,36 @@ type PageProps = {
 
 export default function RequestGamePage({ params }: PageProps) {
   const { barSlug, gameId } = use(params);
+  const searchParams = useSearchParams();
+  const mesaDelQR = searchParams.get("mesa");
 
-  // 1. Buscamos el juego para que la variable 'game' exista
-  const game = GAMES.find((g) => g.id === gameId);
-
+  // --- ESTADOS ---
+  const [game, setGame] = useState<{ id: string; name: string } | null>(null); // Ahora es un estado
+  const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [tableNumber, setTableNumber] = useState("");
   const [dniFile, setDniFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // --- EFECTO: BUSCAR JUEGO EN MONGODB ---
+  useEffect(() => {
+    // Buscamos los datos del juego específico por su ID
+    fetch(`/api/games/${gameId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setGame(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+
+    if (mesaDelQR) {
+      setTableNumber(mesaDelQR);
+    }
+  }, [gameId, mesaDelQR]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -73,12 +85,12 @@ export default function RequestGamePage({ params }: PageProps) {
         });
 
         if (response.ok) {
-          setMessage("¡Pedido confirmado! Acércate a la ludoteca por tu juego.");
+          setIsSuccess(true); // <--- Activamos el modo éxito
+          // Limpiamos todo
           setFullName("");
           setPhone("");
           setTableNumber("");
           setDniFile(null);
-          setPreviewUrl(null);
         } else {
           setMessage("Error al procesar el pedido.");
         }
@@ -93,6 +105,26 @@ export default function RequestGamePage({ params }: PageProps) {
   // Si el ID del juego no existe en nuestra lista
   if (!game) {
     return <div className="p-10 text-center">Juego no encontrado</div>;
+  }
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-emerald-500 flex flex-col items-center justify-center p-6 text-white text-center">
+        <div className="bg-white/20 p-6 rounded-full mb-6 animate-bounce">
+          <svg className="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h1 className="text-4xl font-black mb-2 italic">¡LISTO!</h1>
+        <p className="text-xl font-medium opacity-90">Mostrale esta pantalla al mozo para retirar el juego.</p>
+        <button
+          onClick={() => setIsSuccess(false)}
+          className="mt-10 text-white/70 underline text-sm"
+        >
+          Hacer otro pedido
+        </button>
+      </div>
+    );
   }
 
   return (
