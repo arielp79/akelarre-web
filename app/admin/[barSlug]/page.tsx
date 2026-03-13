@@ -3,9 +3,20 @@ import AdminNav from "@/components/AdminNav";
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 
+// 1. Definimos la interfaz para que TypeScript no se queje
+interface Game {
+    _id: string;
+    name: string;
+    category?: string;
+    available: boolean; // Usamos el campo real de tu modelo
+    internalId?: string;
+}
+
 export default function BarAdminPage({ params }: { params: Promise<{ barSlug: string }> }) {
     const { barSlug } = use(params);
-    const [games, setGames] = useState([]); // Cambiamos préstamos por juegos
+
+    // 2. Tipamos el estado correctamente para evitar el error de any[] vs never[]
+    const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [inputKey, setInputKey] = useState("");
@@ -30,7 +41,7 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
             if (res.ok) {
                 localStorage.setItem("admin_key", key);
                 setIsAuthenticated(true);
-                fetchGames(); // Al autenticar, traemos la ludoteca
+                fetchGames();
             } else {
                 alert("Clave incorrecta");
                 localStorage.removeItem("admin_key");
@@ -43,9 +54,7 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
     };
 
     const fetchGames = async () => {
-        setLoading(true);
         try {
-            // Traemos todos los juegos filtrados por este bar
             const res = await fetch(`/api/games?barSlug=${barSlug}`);
             const data = await res.json();
             setGames(Array.isArray(data) ? data : []);
@@ -86,13 +95,13 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
     }
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-4 sm:p-8 font-sans">
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-4 sm:p-8 font-sans text-zinc-900 dark:text-zinc-50">
             <div className="max-w-4xl mx-auto">
                 <AdminNav barSlug={barSlug} />
 
                 <header className="mb-8">
-                    <h1 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-zinc-50 uppercase italic">
-                        {barSlug}
+                    <h1 className="text-4xl font-black tracking-tighter uppercase italic">
+                        {barSlug.replace("-", " ")}
                     </h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium uppercase tracking-widest">
                         Panel de Control de Ludoteca
@@ -105,20 +114,20 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
                             <p className="text-zinc-400 font-medium">No hay juegos registrados en este bar.</p>
                         </div>
                     ) : (
-                        games.map((game: any) => (
+                        games.map((game) => (
                             <div
                                 key={game._id}
                                 className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between hover:border-indigo-300 dark:hover:border-indigo-900 transition-all"
                             >
                                 <div className="flex items-center gap-4">
-                                    {/* Indicador de Estado */}
+                                    {/* INDICADOR VISUAL: available true = verde / false = rojo */}
                                     <div
-                                        className={`w-3 h-3 rounded-full ${game.isBorrowed ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
-                                        title={game.isBorrowed ? "Prestado" : "Disponible"}
+                                        className={`w-3 h-3 rounded-full ${!game.available ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
+                                        title={game.available ? "Disponible" : "Prestado"}
                                     />
 
                                     <div>
-                                        <h2 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 leading-tight">
+                                        <h2 className={`font-bold text-lg leading-tight ${!game.available ? 'text-zinc-400' : ''}`}>
                                             {game.name}
                                         </h2>
                                         <div className="flex gap-2 items-center mt-1">
@@ -133,8 +142,8 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <span className={`hidden sm:block text-[10px] font-black uppercase px-2 py-1 rounded-md ${game.isBorrowed ? 'text-red-500' : 'text-green-500'}`}>
-                                        {game.isBorrowed ? 'En Mesa' : 'Disponible'}
+                                    <span className={`hidden sm:block text-[10px] font-black uppercase px-2 py-1 rounded-md ${!game.available ? 'text-red-500 bg-red-50 dark:bg-red-950/20' : 'text-green-500 bg-green-50 dark:bg-green-950/20'}`}>
+                                        {game.available ? 'Disponible' : 'En Mesa'}
                                     </span>
 
                                     <Link
