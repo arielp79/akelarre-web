@@ -2,24 +2,26 @@ import { v2 as cloudinary } from "cloudinary";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Loan from "@/models/Loans";
+import Game from "@/models/Games"; // IMPORTANTE: Necesitamos el modelo Game
 
 // Configuramos Cloudinary
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
     api_key: process.env.CLOUDINARY_API_KEY!,
-    api_secret: process.env.CLOUDINARY_API_SECRET!, // Agregué el ! por consistencia
+    api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
-// --- FUNCIÓN PARA GUARDAR (POST) ---
 export async function POST(request: Request) {
     try {
         await connectDB();
         const data = await request.json();
 
+        // 1. Subir DNI a Cloudinary
         const uploadResponse = await cloudinary.uploader.upload(data.dniImage, {
-            folder: "akelarre_dnis",
+            folder: `akelarre/${data.barSlug}/dnis`, // Organizado por bar
         });
 
+        // 2. Crear el Préstamo
         const newLoan = await Loan.create({
             gameId: data.gameId,
             gameName: data.gameName,
@@ -30,6 +32,10 @@ export async function POST(request: Request) {
             dniImageUrl: uploadResponse.secure_url,
         });
 
+        // 3. ACTUALIZACIÓN CRÍTICA: Marcar el juego como PRESTADO
+        // Esto hace que desaparezca automáticamente de la lista del cliente
+        await Game.findByIdAndUpdate(data.gameId, { available: false });
+
         return NextResponse.json({ message: "Éxito", id: newLoan._id }, { status: 201 });
     } catch (error) {
         console.error("Error detallado:", error);
@@ -37,20 +43,19 @@ export async function POST(request: Request) {
     }
 }
 
-// --- NUEVA FUNCIÓN PARA CONSULTAR (GET) ---
 export async function GET(request: Request) {
     try {
         await connectDB();
-
-        // Obtenemos el barSlug de la URL (ej: /api/loans?barSlug=lcb)
         const { searchParams } = new URL(request.url);
         const barSlug = searchParams.get("barSlug");
+        const gameId = searchParams.get("gameId"); // Agregamos filtro por gameId para el detalle
 
-        // Si el admin pide un bar específico, filtramos. Si no, trae todos.
-        const query = barSlug ? { barSlug } : {};
+        // Construimos la consulta dinámicamente
+        const query: any = {};
+        if (barSlug) query.barSlug = barSlug;
+        if (gameId) query.gameId = gameId;
 
         const loans = await Loan.find(query).sort({ createdAt: -1 });
-
         return NextResponse.json(loans);
     } catch (error) {
         console.error("Error al obtener préstamos:", error);

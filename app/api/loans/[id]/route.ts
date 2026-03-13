@@ -1,27 +1,28 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Loan from "@/models/Loans";
+import Game from "@/models/Games";
 
-// Actualizamos la firma para que acepte Promise en params
 export async function DELETE(
     request: Request,
-    context: { params: Promise<{ id: string }> }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         await connectDB();
+        const { id } = await params;
 
-        // DEBEMOS esperar a los params antes de usar el ID
-        const { id } = await context.params;
+        // 1. Buscamos el préstamo para saber qué juego liberar
+        const loan = await Loan.findById(id);
+        if (!loan) return NextResponse.json({ error: "Préstamo no encontrado" }, { status: 404 });
 
-        const deletedLoan = await Loan.findByIdAndDelete(id);
+        // 2. Liberamos el juego (isBorrowed: false)
+        await Game.findByIdAndUpdate(loan.gameId, { available: true });
 
-        if (!deletedLoan) {
-            return NextResponse.json({ error: "Préstamo no encontrado" }, { status: 404 });
-        }
+        // 3. Borramos el préstamo
+        await Loan.findByIdAndDelete(id);
 
-        return NextResponse.json({ message: "Préstamo devuelto correctamente" });
+        return NextResponse.json({ message: "Juego devuelto y liberado" });
     } catch (error) {
-        console.error("Error en DELETE /api/loans/[id]:", error);
-        return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
+        return NextResponse.json({ error: "Error al procesar devolución" }, { status: 500 });
     }
 }
