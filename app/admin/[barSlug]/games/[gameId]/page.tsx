@@ -3,111 +3,74 @@ import React, { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function GameLoanDetail({ params }: { params: Promise<{ barSlug: string, gameId: string }> }) {
+export default function GameAdminDetailPage({ params }: { params: Promise<{ barSlug: string, gameId: string }> }) {
     const { barSlug, gameId } = use(params);
-    const router = useRouter();
     const [loan, setLoan] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
-        // Buscamos el préstamo activo para este juego específico
+        // Buscamos el préstamo activo para este gameId
         fetch(`/api/loans?gameId=${gameId}`)
             .then(res => res.json())
             .then(data => {
-                // Filtramos el préstamo que coincida con el juego
+                // Tu API devuelve un array, tomamos el primero (el actual)
                 setLoan(data[0] || null);
                 setLoading(false);
-            });
+            })
+            .catch(() => setLoading(false));
     }, [gameId]);
 
     const handleReturn = async () => {
-        if (!confirm("¿El juego volvió a la estantería?")) return;
+        if (!loan) return;
+        if (!confirm("¿Confirmás que devolvieron el juego?")) return;
+
         const res = await fetch(`/api/loans/${loan._id}`, { method: "DELETE" });
-        if (res.ok) router.push(`/admin/${barSlug}`);
+        if (res.ok) {
+            router.push(`/admin/${barSlug}`);
+            router.refresh();
+        }
     };
 
-    if (loading) return <div className="p-10 text-center animate-pulse">Cargando datos del cliente...</div>;
-
-    if (!loan) return (
-        <div className="p-10 text-center font-sans">
-            <h1 className="text-zinc-400">Este juego no tiene préstamos activos.</h1>
-            <Link href={`/admin/${barSlug}`} className="text-indigo-600 font-bold mt-4 block underline">Volver al panel</Link>
-        </div>
-    );
+    if (loading) return <div className="p-10 text-center text-white font-sans">Cargando...</div>;
 
     return (
-        <main className="min-h-screen bg-zinc-950 p-6 font-sans text-white">
+        <main className="min-h-screen bg-zinc-950 text-white p-6 font-sans">
             <div className="max-w-md mx-auto">
-                <Link href={`/admin/${barSlug}`} className="text-zinc-500 font-bold mb-8 block text-sm uppercase">← Volver</Link>
+                <Link href={`/admin/${barSlug}`} className="text-zinc-500 text-xs font-bold uppercase mb-8 block underline">
+                    ← Volver al Panel
+                </Link>
 
-                <header className="mb-10">
-                    <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">
-                        Detalle del <br /> <span className="text-indigo-500">Préstamo</span>
-                    </h1>
-                </header>
-
-                {/* FICHA DEL CLIENTE */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-                    {/* FOTO DNI */}
-                    <div className="relative h-64 bg-black">
-                        <img
-                            src={loan.dniImageUrl}
-                            alt="DNI del cliente"
-                            className="w-full h-full object-contain"
-                        />
-                        <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Foto DNI Registrada</p>
-                        </div>
+                {!loan ? (
+                    <div className="bg-zinc-900 p-10 rounded-3xl border border-zinc-800 text-center">
+                        <p className="text-emerald-500 font-black italic uppercase text-2xl">Disponible</p>
+                        <p className="text-zinc-500 mt-2">Nadie tiene este juego prestado actualmente.</p>
                     </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800">
+                            <p className="text-indigo-500 text-[10px] font-black uppercase tracking-widest mb-4">Préstamo Activo</p>
+                            <h2 className="text-3xl font-bold mb-1">{loan.fullName}</h2>
+                            <p className="text-xl text-white font-black italic">MESA {loan.tableNumber}</p>
+                            <p className="text-zinc-400 mt-4">WhatsApp: {loan.phone}</p>
 
-                    <div className="p-8">
-                        <div className="mb-6">
-                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Juego Prestado</p>
-                            <h2 className="text-2xl font-bold leading-tight">{loan.gameName}</h2>
+                            {loan.dniImageUrl && (
+                                <img
+                                    src={loan.dniImageUrl}
+                                    className="mt-6 rounded-2xl w-full h-48 object-cover border border-zinc-700"
+                                    alt="DNI"
+                                />
+                            )}
                         </div>
 
-                        {/* FICHA DEL CLIENTE ACTUALIZADA */}
-                        <div className="grid grid-cols-2 gap-6 mb-8">
-                            <div>
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Cliente</p>
-                                <p className="font-bold">{loan.fullName}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Mesa</p>
-                                <p className="font-bold text-xl text-indigo-400">{loan.tableNumber}</p>
-                            </div>
-
-                            {/* NUEVO CAMPO: TELÉFONO */}
-                            <div className="col-span-2 py-3 border-y border-zinc-800/50">
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">WhatsApp / Teléfono</p>
-                                <a
-                                    href={`https://wa.me/${loan.phone.replace(/\D/g, '')}`}
-                                    target="_blank"
-                                    className="font-bold text-lg text-green-500 flex items-center gap-2 hover:underline"
-                                >
-                                    <span>📱</span> {loan.phone}
-                                </a>
-                            </div>
-
-                            <div>
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Fecha</p>
-                                <p className="font-medium text-sm text-zinc-300">{new Date(loan.createdAt).toLocaleDateString()}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Hora Inicio</p>
-                                <p className="font-medium text-sm text-zinc-300">{new Date(loan.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs</p>
-                            </div>
-                        </div>
-
-                        {/* ACCIÓN DE DEVOLUCIÓN */}
                         <button
                             onClick={handleReturn}
-                            className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all active:scale-95"
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 py-6 rounded-3xl font-black uppercase tracking-widest transition-all shadow-xl"
                         >
                             Confirmar Devolución
                         </button>
                     </div>
-                </div>
+                )}
             </div>
         </main>
     );

@@ -2,20 +2,20 @@
 import AdminNav from "@/components/AdminNav";
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // Importamos para navegar programáticamente
 
-// 1. Definimos la interfaz para que TypeScript no se queje
 interface Game {
     _id: string;
     name: string;
     category?: string;
-    available: boolean; // Usamos el campo real de tu modelo
+    available: boolean;
     internalId?: string;
 }
 
 export default function BarAdminPage({ params }: { params: Promise<{ barSlug: string }> }) {
     const { barSlug } = use(params);
+    const router = useRouter();
 
-    // 2. Tipamos el estado correctamente para evitar el error de any[] vs never[]
     const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -65,7 +65,7 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
         }
     };
 
-    if (loading && !isAuthenticated) return <div className="p-10 text-center animate-pulse font-sans">Verificando credenciales...</div>;
+    if (loading && !isAuthenticated) return <div className="p-10 text-center animate-pulse font-sans">Verificando...</div>;
 
     if (!isAuthenticated) {
         return (
@@ -74,20 +74,19 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
                     <h1 className="text-white text-2xl font-black mb-2 text-center tracking-tighter uppercase italic">
                         {barSlug} <span className="text-indigo-500">Admin</span>
                     </h1>
-                    <p className="text-zinc-500 text-sm mb-6 text-center">Introduce la Master Key</p>
                     <input
                         type="password"
                         placeholder="Clave Maestra"
-                        className="w-full p-3 rounded-xl bg-black border border-zinc-700 text-white mb-4 focus:border-indigo-500 outline-none transition-all"
+                        className="w-full p-3 rounded-xl bg-black border border-zinc-700 text-white mb-4 outline-none"
                         value={inputKey}
                         onChange={(e) => setInputKey(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && verifyKey(inputKey)}
                     />
                     <button
                         onClick={() => verifyKey(inputKey)}
-                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all active:scale-95"
+                        className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold"
                     >
-                        Acceder al Inventario
+                        Acceder
                     </button>
                 </div>
             </div>
@@ -99,63 +98,40 @@ export default function BarAdminPage({ params }: { params: Promise<{ barSlug: st
             <div className="max-w-4xl mx-auto">
                 <AdminNav barSlug={barSlug} />
 
-                <header className="mb-8">
-                    <h1 className="text-4xl font-black tracking-tighter uppercase italic">
+                <header className="mb-8 mt-4">
+                    <h1 className="text-4xl font-black tracking-tighter uppercase italic leading-none">
                         {barSlug.replace("-", " ")}
                     </h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium uppercase tracking-widest">
-                        Panel de Control de Ludoteca
-                    </p>
+                    <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest">Panel de Control</p>
                 </header>
 
                 <div className="grid gap-3">
-                    {games.length === 0 ? (
-                        <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
-                            <p className="text-zinc-400 font-medium">No hay juegos registrados en este bar.</p>
-                        </div>
-                    ) : (
-                        games.map((game) => (
-                            <div
-                                key={game._id}
-                                className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between hover:border-indigo-300 dark:hover:border-indigo-900 transition-all"
-                            >
-                                <div className="flex items-center gap-4">
-                                    {/* INDICADOR VISUAL: available true = verde / false = rojo */}
-                                    <div
-                                        className={`w-3 h-3 rounded-full ${!game.available ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
-                                        title={game.available ? "Disponible" : "Prestado"}
-                                    />
-
-                                    <div>
-                                        <h2 className={`font-bold text-lg leading-tight ${!game.available ? 'text-zinc-400' : ''}`}>
-                                            {game.name}
-                                        </h2>
-                                        <div className="flex gap-2 items-center mt-1">
-                                            <span className="text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-500">
-                                                ID: {game.internalId || game._id.slice(-6)}
-                                            </span>
-                                            <span className="text-xs text-zinc-400 uppercase font-bold tracking-tighter">
-                                                {game.category || "General"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    <span className={`hidden sm:block text-[10px] font-black uppercase px-2 py-1 rounded-md ${!game.available ? 'text-red-500 bg-red-50 dark:bg-red-950/20' : 'text-green-500 bg-green-50 dark:bg-green-950/20'}`}>
+                    {games.map((game) => (
+                        <div
+                            key={game._id}
+                            className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between transition-all"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`w-3 h-3 rounded-full ${!game.available ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
+                                <div>
+                                    <h2 className={`font-bold text-lg leading-tight ${!game.available ? 'text-zinc-400' : ''}`}>
+                                        {game.name}
+                                    </h2>
+                                    <span className="text-xs text-zinc-400 uppercase font-bold tracking-tighter">
                                         {game.available ? 'Disponible' : 'En Mesa'}
                                     </span>
-
-                                    <Link
-                                        href={`/admin/${barSlug}/games/${game._id}`}
-                                        className="h-10 w-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-600 hover:text-white rounded-xl transition-all group"
-                                    >
-                                        <span className="text-lg group-hover:translate-x-0.5 transition-transform">→</span>
-                                    </Link>
                                 </div>
                             </div>
-                        ))
-                    )}
+
+                            {/* EL LINK CORREGIDO SEGÚN TU ESTRUCTURA */}
+                            <Link
+                                href={`/admin/${barSlug}/games/${game._id}`}
+                                className="h-12 w-12 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-sm"
+                            >
+                                <span className="text-xl">→</span>
+                            </Link>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
