@@ -4,6 +4,7 @@ const BarSchema = new mongoose.Schema({
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true }, // Ejemplo: 'akelarre-lcb'
     location: String,
+    phone: { type: String },
     isActive: { type: Boolean, default: true },
 });
 

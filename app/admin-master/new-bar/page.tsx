@@ -17,8 +17,12 @@ export default function NewBarForm() {
 
         const res = await fetch("/api/bars", {
             method: "POST",
-            body: JSON.stringify({ name, location, phone: cleanPhone }),
             headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: name,
+                location: location,
+                phone: cleanPhone
+            }),
         });
 
         if (res.ok) {

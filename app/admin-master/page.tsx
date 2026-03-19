@@ -4,40 +4,123 @@ import Link from "next/link";
 
 export default function AkelarreMaster() {
     const [bars, setBars] = useState<any[]>([]);
+    const [editingBar, setEditingBar] = useState<any>(null);
+
+    const fetchBars = async () => {
+        const res = await fetch("/api/bars");
+        const data = await res.json();
+        setBars(Array.isArray(data) ? data : []);
+    };
 
     useEffect(() => {
-        fetch("/api/bars").then(res => res.json()).then(setBars);
+        fetchBars();
     }, []);
 
+    // FUNCIÓN PARA ELIMINAR
+    const deleteBar = async (slug: string, name: string) => {
+        if (!confirm(`¿Estás seguro de eliminar "${name}"? Se borrarán también todos sus juegos.`)) return;
+
+        const res = await fetch(`/api/bars?slug=${slug}`, { method: "DELETE" });
+        if (res.ok) {
+            // Optimismo: lo quitamos del estado antes de re-fetch
+            setBars(prev => prev.filter(b => b.slug !== slug));
+        } else {
+            alert("Error al eliminar el bar");
+        }
+    };
+
+    // FUNCIÓN PARA GUARDAR EDICIÓN
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const res = await fetch("/api/bars", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id: editingBar._id,
+                name: editingBar.name,
+                phone: editingBar.phone,
+                location: editingBar.location
+            }),
+        });
+
+        if (res.ok) {
+            setEditingBar(null);
+            fetchBars();
+        }
+    };
+
     return (
-        <main className="p-8 max-w-5xl mx-auto font-sans">
-            {/* 1. TÍTULO Y LOGO */}
+        <main className="p-8 max-w-5xl mx-auto font-sans bg-zinc-50 min-h-screen">
             <header className="flex justify-between items-center mb-12">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-lg">A</div>
                     <h1 className="text-4xl font-black tracking-tighter uppercase italic">AKELARRE <span className="text-zinc-400">MASTER</span></h1>
                 </div>
-                {/* 2. BOTÓN AGREGAR BAR */}
                 <Link href="/admin-master/new-bar" className="bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all">
                     + Agregar Bar
                 </Link>
             </header>
 
-            {/* LISTA DE BARES */}
             <div className="grid gap-4">
                 {bars.map(bar => (
-                    <div key={bar.slug} className="bg-white border p-6 rounded-3xl flex justify-between items-center shadow-sm">
+                    <div key={bar.slug} className="bg-white border p-6 rounded-3xl flex justify-between items-center shadow-sm hover:shadow-md transition-all">
                         <div>
-                            <h2 className="text-2xl font-bold">{bar.name}</h2>
-                            <p className="text-zinc-500 font-mono text-sm tracking-widest uppercase italic">{bar.slug}</p>
+                            <h2 className="text-2xl font-bold text-zinc-900">{bar.name}</h2>
+                            <p className="text-zinc-500 font-mono text-xs italic">{bar.slug}</p>
+                            <p className="text-indigo-600 text-xs font-bold mt-1">{bar.phone || "Sin teléfono"}</p>
                         </div>
-                        {/* BOTÓN DETALLE DE JUEGOS */}
-                        <Link href={`/admin-master/bars/${bar.slug}`} className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-100 transition-all">
-                            Ver Juegos →
-                        </Link>
+
+                        <div className="flex items-center gap-2">
+                            <Link href={`/admin-master/bars/${bar.slug}`} className="bg-zinc-100 px-4 py-2 rounded-xl font-bold text-sm text-zinc-600 hover:bg-zinc-200">
+                                Juegos
+                            </Link>
+
+                            {/* BOTÓN EDITAR */}
+                            <button
+                                onClick={() => setEditingBar(bar)}
+                                className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"
+                            >
+                                ✏️
+                            </button>
+
+                            {/* BOTÓN BORRAR */}
+                            <button
+                                onClick={() => deleteBar(bar.slug, bar.name)}
+                                className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                            >
+                                🗑️
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
+
+            {/* MODAL DE EDICIÓN */}
+            {editingBar && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <form onSubmit={handleUpdate} className="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl">
+                        <h2 className="text-2xl font-black mb-6 uppercase italic tracking-tighter">Editar Bar</h2>
+                        <div className="flex flex-col gap-4">
+                            <input
+                                className="p-4 bg-zinc-100 rounded-2xl outline-none font-bold focus:ring-2 focus:ring-indigo-500"
+                                value={editingBar.name}
+                                onChange={e => setEditingBar({ ...editingBar, name: e.target.value })}
+                                placeholder="Nombre"
+                            />
+                            <input
+                                className="p-4 bg-zinc-100 rounded-2xl outline-none font-bold focus:ring-2 focus:ring-indigo-500"
+                                value={editingBar.phone || ""}
+                                onChange={e => setEditingBar({ ...editingBar, phone: e.target.value })}
+                                placeholder="WhatsApp (549...)"
+                            />
+                            <div className="flex gap-2 mt-4">
+                                <button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase">Guardar</button>
+                                <button type="button" onClick={() => setEditingBar(null)} className="flex-1 bg-zinc-200 py-4 rounded-2xl font-bold">Cancelar</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
         </main>
     );
 }
