@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import QRCode from "qrcode"; // Importamos la librería
 
 export default function AkelarreMaster() {
     const [bars, setBars] = useState<any[]>([]);
     const [editingBar, setEditingBar] = useState<any>(null);
+    const [qrUrl, setQrUrl] = useState<string | null>(null); // Estado para el QR
 
     const fetchBars = async () => {
         const res = await fetch("/api/bars");
@@ -16,20 +18,36 @@ export default function AkelarreMaster() {
         fetchBars();
     }, []);
 
-    // FUNCIÓN PARA ELIMINAR
+    // FUNCIÓN PARA GENERAR EL QR
+    const generateQR = async (slug: string) => {
+        // La URL apunta a la raíz del bar donde el cliente ve los juegos
+        const url = `${window.location.origin}/${slug}`;
+        try {
+            const qrDataUrl = await QRCode.toDataURL(url, {
+                width: 400,
+                margin: 2,
+                color: {
+                    dark: "#4f46e5", // Color Índigo acorde a tu diseño
+                    light: "#ffffff",
+                },
+            });
+            setQrUrl(qrDataUrl);
+        } catch (err) {
+            console.error("Error generando QR:", err);
+        }
+    };
+
     const deleteBar = async (slug: string, name: string) => {
         if (!confirm(`¿Estás seguro de eliminar "${name}"? Se borrarán también todos sus juegos.`)) return;
 
         const res = await fetch(`/api/bars?slug=${slug}`, { method: "DELETE" });
         if (res.ok) {
-            // Optimismo: lo quitamos del estado antes de re-fetch
             setBars(prev => prev.filter(b => b.slug !== slug));
         } else {
             alert("Error al eliminar el bar");
         }
     };
 
-    // FUNCIÓN PARA GUARDAR EDICIÓN
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         const res = await fetch("/api/bars", {
@@ -71,11 +89,19 @@ export default function AkelarreMaster() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {/* BOTÓN QR */}
+                            <button
+                                onClick={() => generateQR(bar.slug)}
+                                className="p-3 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 transition-all"
+                                title="Generar QR"
+                            >
+                                📱
+                            </button>
+
                             <Link href={`/admin-master/bars/${bar.slug}`} className="bg-zinc-100 px-4 py-2 rounded-xl font-bold text-sm text-zinc-600 hover:bg-zinc-200">
                                 Juegos
                             </Link>
 
-                            {/* BOTÓN EDITAR */}
                             <button
                                 onClick={() => setEditingBar(bar)}
                                 className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"
@@ -83,7 +109,6 @@ export default function AkelarreMaster() {
                                 ✏️
                             </button>
 
-                            {/* BOTÓN BORRAR */}
                             <button
                                 onClick={() => deleteBar(bar.slug, bar.name)}
                                 className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
@@ -94,6 +119,36 @@ export default function AkelarreMaster() {
                     </div>
                 ))}
             </div>
+
+            {/* MODAL DE QR */}
+            {qrUrl && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
+                    <div className="bg-white p-8 rounded-[3rem] max-w-sm w-full text-center shadow-2xl">
+                        <h2 className="text-2xl font-black uppercase italic mb-2">Código QR</h2>
+                        <p className="text-zinc-500 text-[10px] mb-6 font-black uppercase tracking-widest">Escaneá para pedir juegos</p>
+
+                        <div className="bg-zinc-50 p-4 rounded-3xl mb-6 inline-block border-4 border-zinc-100">
+                            <img src={qrUrl} alt="QR Code" className="w-64 h-64 mx-auto" />
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <a
+                                href={qrUrl}
+                                download="akelarre-qr.png"
+                                className="bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-500 transition-all text-sm"
+                            >
+                                Descargar QR
+                            </a>
+                            <button
+                                onClick={() => setQrUrl(null)}
+                                className="text-zinc-400 font-bold py-2 hover:text-zinc-900 transition-colors uppercase text-xs tracking-widest"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL DE EDICIÓN */}
             {editingBar && (
