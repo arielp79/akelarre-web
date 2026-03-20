@@ -5,6 +5,7 @@ const LoanSchema = new Schema({
     gameName: { type: String, required: true },
     barSlug: { type: String, required: true },
     fullName: { type: String, required: true },
+    phone: { type: String, required: true },
     address: { type: String, required: true }, // <--- AGREGAR
     city: { type: String, required: true },    // <--- AGREGAR
     createdAt: { type: Date, default: Date.now }

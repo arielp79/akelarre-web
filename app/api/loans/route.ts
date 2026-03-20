@@ -22,6 +22,7 @@ export async function POST(request: Request) {
             gameName: data.gameName,
             barSlug: data.barSlug,
             fullName: data.fullName,
+            phone: data.phone,
             address: data.address, // <--- REVISAR QUE VENGA DEL FRONT
             city: data.city
         });

@@ -15,9 +15,12 @@ export default function RequestGamePage({ params }: PageProps) {
   const router = useRouter();
 
   const [game, setGame] = useState<{ _id: string; name: string } | null>(null);
-  const [barPhone, setBarPhone] = useState(""); // <--- Estado para el teléfono real
+  const [barPhone, setBarPhone] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Estados del formulario
   const [fullName, setFullName] = useState("");
+  const [userPhone, setUserPhone] = useState(""); // <--- NUEVO: Teléfono del cliente
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,12 +29,10 @@ export default function RequestGamePage({ params }: PageProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Buscamos el juego
         const gameRes = await fetch(`/api/games/${gameId}`);
         const gameData = await gameRes.json();
         setGame(gameData);
 
-        // Buscamos el bar para obtener su teléfono REAL
         const barRes = await fetch(`/api/bars/detail?slug=${barSlug}`);
         const barData = await barRes.json();
         if (barData && barData.phone) {
@@ -57,7 +58,7 @@ export default function RequestGamePage({ params }: PageProps) {
     setIsSubmitting(true);
 
     try {
-      // 1. REGISTRAMOS EL PRÉSTAMO
+      // 1. REGISTRAMOS EL PRÉSTAMO INCLUYENDO EL TELÉFONO DEL CLIENTE
       const response = await fetch("/api/loans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,16 +67,15 @@ export default function RequestGamePage({ params }: PageProps) {
           gameName: game.name,
           barSlug: barSlug,
           fullName: fullName,
+          phone: userPhone, // <--- NUEVO: Enviamos el teléfono a la base de datos
           address: address,
           city: city
         }),
       });
 
       if (response.ok) {
-        // 2. ABRIMOS WHATSAPP con el teléfono dinámico
-        const message = `¡Hola! Soy *${fullName}* de *${city}* (${address}). Me gustaría pedir el juego: *${game.name}*.`;
-
-        // El link ahora usa barPhone de la base de datos
+        // 2. ABRIMOS WHATSAPP con el teléfono del bar
+        const message = `¡Hola! Soy *${fullName}* de *${city}* (${address}). Me gustaría pedir el juego: *${game.name}*. Mi contacto es *${userPhone}*.`;
         const whatsappUrl = `https://wa.me/${barPhone}?text=${encodeURIComponent(message)}`;
 
         window.open(whatsappUrl, "_blank");
@@ -113,7 +113,20 @@ export default function RequestGamePage({ params }: PageProps) {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
+                placeholder="Tu nombre"
                 className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-[10px] font-black uppercase text-zinc-500 ml-2 tracking-widest">Tu WhatsApp</span>
+              <input
+                type="tel"
+                value={userPhone}
+                onChange={(e) => setUserPhone(e.target.value)}
+                required
+                placeholder="Ej: 2991234567"
+                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-700"
               />
             </label>
 
@@ -124,6 +137,7 @@ export default function RequestGamePage({ params }: PageProps) {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 required
+                placeholder="Calle y número"
                 className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </label>
@@ -135,6 +149,7 @@ export default function RequestGamePage({ params }: PageProps) {
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 required
+                placeholder="Ej: Neuquén"
                 className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </label>
@@ -143,7 +158,7 @@ export default function RequestGamePage({ params }: PageProps) {
           <button
             type="submit"
             disabled={isSubmitting || !barPhone}
-            className="mt-6 w-full rounded-3xl bg-emerald-600 py-6 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-emerald-500 active:scale-95 disabled:opacity-50"
+            className="mt-6 w-full rounded-3xl bg-emerald-600 py-6 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-emerald-500 active:scale-95 disabled:opacity-50 transition-all"
           >
             {!barPhone ? "Cargando Teléfono..." : (isSubmitting ? "Procesando..." : "Pedir por WhatsApp 📱")}
           </button>
