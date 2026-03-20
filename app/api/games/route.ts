@@ -34,3 +34,27 @@ export async function POST(request: Request) {
     const newGame = await Game.create(data);
     return NextResponse.json(newGame);
 }
+
+export async function DELETE(request: Request) {
+    try {
+        await connectDB();
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get("id");
+        await Game.findByIdAndDelete(id);
+        return NextResponse.json({ message: "Juego eliminado" });
+    } catch (error) {
+        return NextResponse.json({ error: "Error al eliminar" }, { status: 500 });
+    }
+}
+
+export async function PUT(request: Request) {
+    try {
+        await connectDB();
+        const data = await request.json();
+        const { _id, ...updates } = data;
+        const updatedGame = await Game.findByIdAndUpdate(_id, updates, { new: true });
+        return NextResponse.json(updatedGame);
+    } catch (error) {
+        return NextResponse.json({ error: "Error al actualizar" }, { status: 500 });
+    }
+}
