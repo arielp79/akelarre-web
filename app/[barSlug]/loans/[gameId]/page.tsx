@@ -15,33 +15,49 @@ export default function RequestGamePage({ params }: PageProps) {
   const router = useRouter();
 
   const [game, setGame] = useState<{ _id: string; name: string } | null>(null);
+  const [barPhone, setBarPhone] = useState(""); // <--- Estado para el teléfono real
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- BUSCAR JUEGO ---
+  // 1. BUSCAR DATOS DEL JUEGO Y DEL BAR
   useEffect(() => {
-    fetch(`/api/games/${gameId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setGame(data);
+    const fetchData = async () => {
+      try {
+        // Buscamos el juego
+        const gameRes = await fetch(`/api/games/${gameId}`);
+        const gameData = await gameRes.json();
+        setGame(gameData);
+
+        // Buscamos el bar para obtener su teléfono REAL
+        const barRes = await fetch(`/api/bars/detail?slug=${barSlug}`);
+        const barData = await barRes.json();
+        if (barData && barData.phone) {
+          setBarPhone(barData.phone);
+        }
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [gameId]);
+      }
+    };
+
+    fetchData();
+  }, [gameId, barSlug]);
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!game || isSubmitting) return;
+    if (!game || isSubmitting || !barPhone) {
+      alert("Faltan datos del bar o el juego.");
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
-      // 1. REGISTRAMOS EL PRÉSTAMO Y ACTUALIZAMOS DISPONIBILIDAD
-      // Enviamos los datos a tu API para que el juego pase a available: false
-      // Dentro de tu función handleOrder:
+      // 1. REGISTRAMOS EL PRÉSTAMO
       const response = await fetch("/api/loans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,23 +66,22 @@ export default function RequestGamePage({ params }: PageProps) {
           gameName: game.name,
           barSlug: barSlug,
           fullName: fullName,
-          address: address, // <--- Verifica que no diga 'direccion'
-          city: city        // <--- Verifica que no diga 'ciudad'
+          address: address,
+          city: city
         }),
       });
 
       if (response.ok) {
-        // 2. SI LA BASE DE DATOS SE ACTUALIZÓ, ABRIMOS WHATSAPP
-        const phoneBar = "5492991234567"; // IMPORTANTE: Poné acá el número real del bar
+        // 2. ABRIMOS WHATSAPP con el teléfono dinámico
         const message = `¡Hola! Soy *${fullName}* de *${city}* (${address}). Me gustaría pedir el juego: *${game.name}*.`;
-        const whatsappUrl = `https://wa.me/${phoneBar}?text=${encodeURIComponent(message)}`;
+
+        // El link ahora usa barPhone de la base de datos
+        const whatsappUrl = `https://wa.me/${barPhone}?text=${encodeURIComponent(message)}`;
 
         window.open(whatsappUrl, "_blank");
-
-        // Redirigimos a una pantalla de éxito
         router.push(`/${barSlug}/success`);
       } else {
-        alert("Hubo un error al procesar el pedido. Intentá nuevamente.");
+        alert("Hubo un error al procesar el pedido.");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -75,7 +90,7 @@ export default function RequestGamePage({ params }: PageProps) {
     }
   };
 
-  if (loading) return <div className="p-10 text-center animate-pulse text-zinc-500 font-sans uppercase font-black">Cargando juego...</div>;
+  if (loading) return <div className="p-10 text-center animate-pulse text-zinc-500 font-sans uppercase font-black">Cargando datos...</div>;
   if (!game) return <div className="p-10 text-center font-sans">Juego no encontrado</div>;
 
   return (
@@ -89,10 +104,7 @@ export default function RequestGamePage({ params }: PageProps) {
           </h1>
         </header>
 
-        <form
-          onSubmit={handleOrder}
-          className="flex flex-col gap-6 rounded-[2.5rem] bg-zinc-900 p-8 border border-zinc-800 shadow-2xl"
-        >
+        <form onSubmit={handleOrder} className="flex flex-col gap-6 rounded-[2.5rem] bg-zinc-900 p-8 border border-zinc-800 shadow-2xl">
           <div className="space-y-5">
             <label className="flex flex-col gap-2">
               <span className="text-[10px] font-black uppercase text-zinc-500 ml-2 tracking-widest">Nombre Completo</span>
@@ -101,8 +113,7 @@ export default function RequestGamePage({ params }: PageProps) {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                placeholder="Tu nombre"
-                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-700"
+                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </label>
 
@@ -113,8 +124,7 @@ export default function RequestGamePage({ params }: PageProps) {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 required
-                placeholder="Calle y número"
-                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-700"
+                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </label>
 
@@ -125,18 +135,17 @@ export default function RequestGamePage({ params }: PageProps) {
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 required
-                placeholder="Neuquén, Cipolletti..."
-                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-700"
+                className="rounded-2xl border-none bg-black p-4 font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </label>
           </div>
 
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="mt-6 w-full rounded-3xl bg-emerald-600 py-6 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-emerald-500 active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.2)] disabled:opacity-50"
+            disabled={isSubmitting || !barPhone}
+            className="mt-6 w-full rounded-3xl bg-emerald-600 py-6 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-emerald-500 active:scale-95 disabled:opacity-50"
           >
-            {isSubmitting ? "Procesando..." : "Pedir por WhatsApp 📱"}
+            {!barPhone ? "Cargando Teléfono..." : (isSubmitting ? "Procesando..." : "Pedir por WhatsApp 📱")}
           </button>
         </form>
       </div>

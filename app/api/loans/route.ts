@@ -16,30 +16,23 @@ export async function POST(request: Request) {
         await connectDB();
         const data = await request.json();
 
-        // 1. Subir DNI a Cloudinary
-        const uploadResponse = await cloudinary.uploader.upload(data.dniImage, {
-            folder: `akelarre/${data.barSlug}/dnis`, // Organizado por bar
-        });
-
-        // 2. Crear el Préstamo
+        // Creamos el registro en la base de datos
         const newLoan = await Loan.create({
             gameId: data.gameId,
             gameName: data.gameName,
             barSlug: data.barSlug,
             fullName: data.fullName,
-            phone: data.phone,
-            tableNumber: data.tableNumber,
-            dniImageUrl: uploadResponse.secure_url,
+            address: data.address, // <--- REVISAR QUE VENGA DEL FRONT
+            city: data.city
         });
 
-        // 3. ACTUALIZACIÓN CRÍTICA: Marcar el juego como PRESTADO
-        // Esto hace que desaparezca automáticamente de la lista del cliente
+        // Marcamos el juego como NO disponible
         await Game.findByIdAndUpdate(data.gameId, { available: false });
 
-        return NextResponse.json({ message: "Éxito", id: newLoan._id }, { status: 201 });
-    } catch (error) {
-        console.error("Error detallado:", error);
-        return NextResponse.json({ error: "Fallo en el servidor" }, { status: 500 });
+        return NextResponse.json(newLoan, { status: 201 });
+    } catch (error: any) {
+        console.error("ERROR EN LOANS API:", error.message);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
